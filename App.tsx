@@ -18,7 +18,7 @@ import DraggableFlatList, {
 } from "react-native-draggable-flatlist";
 import * as Haptics from "expo-haptics";
 import { Dice5, RefreshCcw } from "lucide-react-native";
-import { Progression, Scale } from "@tonaljs/tonal";
+import { Progression, Scale } from "tonal";
 
 import { MAJOR_DEGREES, MAJOR_KEYS } from "./constants/music";
 import { DegreeCard, useRandomDegrees } from "./hooks/useRandomDegrees";
