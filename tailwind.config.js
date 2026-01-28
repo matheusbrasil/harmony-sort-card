@@ -1,5 +1,12 @@
 module.exports = {
-  content: ["./App.{js,jsx,ts,tsx}", "./components/**/*.{js,jsx,ts,tsx}", "./hooks/**/*.{js,jsx,ts,tsx}", "./constants/**/*.{js,jsx,ts,tsx}"] ,
+  darkMode: "class",
+  presets: [require("nativewind/preset")],
+  content: [
+    "./App.{js,jsx,ts,tsx}",
+    "./components/**/*.{js,jsx,ts,tsx}",
+    "./hooks/**/*.{js,jsx,ts,tsx}",
+    "./constants/**/*.{js,jsx,ts,tsx}",
+  ],
   theme: {
     extend: {
       colors: {

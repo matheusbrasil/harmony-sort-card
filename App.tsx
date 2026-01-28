@@ -1,14 +1,18 @@
 import "react-native-gesture-handler";
+import "./reanimated-polyfill";
+import "react-native-reanimated";
 import "./global.css";
 
 import { useMemo, useState } from "react";
 import { Pressable, Text, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import Animated, {
   FadeIn,
   useAnimatedStyle,
   useSharedValue,
   withSequence,
+  withSpring,
   withTiming,
 } from "react-native-reanimated";
 import { StatusBar } from "expo-status-bar";
@@ -80,7 +84,7 @@ export default function App() {
   };
 
   const redraw = () => {
-    if (!degreeCount) {
+    if (degreeCount === null) {
       return;
     }
     setCards(randomizeDegrees(keyDegrees, degreeCount));
@@ -88,7 +92,10 @@ export default function App() {
 
   const pickKey = () => {
     const nextKey = MAJOR_KEYS[Math.floor(Math.random() * MAJOR_KEYS.length)];
-    flip.value = withSequence(withTiming(180, { duration: 420 }), withTiming(0, { duration: 280 }));
+    flip.value = withSequence(
+      withTiming(180, { duration: 420 }),
+      withSpring(0, { damping: 12, stiffness: 120, mass: 1.4 }),
+    );
     setSelectedKey(nextKey);
   };
 
@@ -96,7 +103,7 @@ export default function App() {
     transform: [{ rotateY: `${flip.value}deg` }],
   }));
 
-  const renderItem = ({ item, drag, isActive }: RenderItemParams<DegreeCard>) => {
+  const renderItem = ({ item, drag, isActive, index }: RenderItemParams<DegreeCard>) => {
     return (
       <ScaleDecorator>
         <Pressable
@@ -104,27 +111,29 @@ export default function App() {
           disabled={isActive}
           className="active:opacity-90"
         >
-          <DegreeCardView item={item} isActive={isActive} />
+          <DegreeCardView item={item} isActive={isActive} index={index} />
         </Pressable>
       </ScaleDecorator>
     );
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-ink px-5">
-      <StatusBar style="light" />
-      <View className="flex-row items-center justify-between mt-2 mb-6">
-        <View>
-          <Text className="text-zinc-400 text-xs uppercase tracking-widest">Harmony Sort</Text>
-          <Text className="text-white text-2xl font-semibold">Degree Drift</Text>
-        </View>
-        <Pressable
-          onPress={resetKey}
-          className="bg-zinc-900 rounded-full px-3 py-2"
-        >
-          <Text className="text-zinc-300 text-xs">Reset</Text>
-        </Pressable>
-      </View>
+    <GestureHandlerRootView style={{ flex: 1, backgroundColor: "#0a0a0f" }}>
+      <SafeAreaProvider>
+        <SafeAreaView className="flex-1 bg-ink px-5">
+          <StatusBar style="light" />
+          <View className="flex-row items-center justify-between mt-2 mb-6">
+            <View>
+              <Text className="text-zinc-400 text-xs uppercase tracking-widest">Harmony Sort</Text>
+              <Text className="text-white text-2xl font-semibold">Degree Drift</Text>
+            </View>
+            <Pressable
+              onPress={resetKey}
+              className="bg-zinc-900 rounded-full px-3 py-2"
+            >
+              <Text className="text-zinc-300 text-xs">Reset</Text>
+            </Pressable>
+          </View>
 
       {!selectedKey && (
         <Animated.View entering={FadeIn.duration(400)} className="flex-1 items-center justify-center">
@@ -141,7 +150,7 @@ export default function App() {
         </Animated.View>
       )}
 
-      {selectedKey && !degreeCount && (
+          {selectedKey && degreeCount === null && (
         <Animated.View entering={FadeIn.duration(400)} className="flex-1">
           <View className="bg-card rounded-3xl p-6 shadow-glow">
             <Text className="text-zinc-400 text-xs uppercase tracking-widest">Selected Key</Text>
@@ -160,9 +169,9 @@ export default function App() {
             </View>
           </View>
         </Animated.View>
-      )}
+          )}
 
-      {selectedKey && degreeCount && (
+          {selectedKey && degreeCount !== null && (
         <View className="flex-1">
           <View className="flex-row items-center justify-between mb-4">
             <View>
@@ -177,19 +186,25 @@ export default function App() {
             data={cards}
             keyExtractor={(item) => item.id}
             renderItem={renderItem}
-            onDragEnd={({ data }) => setCards(data)}
             onDragBegin={() => {
-              void Haptics.selectionAsync();
-            }}
-            onPlaceholderIndexChange={() => {
               void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             }}
+            onDragEnd={({ data }) => {
+              void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              setCards(data);
+            }}
+            onPlaceholderIndexChange={() => {
+              void Haptics.selectionAsync();
+            }}
             activationDistance={10}
+            dragHitSlop={{ top: 16, bottom: 16, left: 24, right: 24 }}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={{ paddingBottom: 24 }}
           />
         </View>
       )}
-    </SafeAreaView>
+        </SafeAreaView>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }
