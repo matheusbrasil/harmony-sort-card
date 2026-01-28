@@ -8,7 +8,7 @@ Harmony Sort Card is a small study game/app for practicing scales and harmony by
 - React 18 + React Native 0.73
 - TypeScript
 - NativeWind + Tailwind CSS
-- @tonaljs/tonal for music theory helpers
+- tonal for music theory helpers
 - react-native-draggable-flatlist, react-native-gesture-handler, react-native-reanimated
 
 ## Local development & testing
