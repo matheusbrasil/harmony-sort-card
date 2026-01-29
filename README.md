@@ -1,6 +1,6 @@
-# Harmony Sort Card
+# HarmonCards
 
-Harmony Sort Card is a small study game/app for practicing scales and harmony by sorting cards into the correct order.
+HarmonCards is a small study game/app for practicing scales and harmony by sorting cards into the correct order.
 
 ## Stack
 

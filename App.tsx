@@ -4,7 +4,7 @@ import "react-native-reanimated";
 import "./global.css";
 
 import { useMemo, useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Platform, Pressable, Text, View } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import Animated, {
@@ -30,6 +30,97 @@ import { DegreeCardView } from "./components/DegreeCard";
 
 const degreeCounts = [3, 4, 5, 6];
 
+type Language = "en" | "pt";
+
+const STRINGS: Record<Language, Record<string, string>> = {
+  en: {
+    appLabel: "HarmonCards",
+    title: "HarmonCards",
+    tagline: "Draw keys and degrees to practice music theory and create chord progressions.",
+    reset: "Reset",
+    selectedKey: "Selected Key",
+    chooseCount: "Choose how many degrees to sort.",
+    cardsLabel: "cards",
+    pickKeyTitle: "Pick a Key",
+    pickKeySubtitle: "Tap to draw a random major key",
+    sortingTitle: "Now Sorting",
+    degreesSuffix: "Degrees",
+    major: "Major",
+    language: "Language",
+    redraw: "Redraw",
+  },
+  pt: {
+    appLabel: "HarmonCards",
+    title: "HarmonCards",
+    tagline:
+      "Sorteie tonalidades e graus para praticar teoria musical e montar progressões de acordes.",
+    reset: "Reiniciar",
+    selectedKey: "Tom escolhido",
+    chooseCount: "Escolha quantos graus ordenar.",
+    cardsLabel: "cartas",
+    pickKeyTitle: "Sortear um tom",
+    pickKeySubtitle: "Toque para sortear uma tonalidade maior aleatória",
+    sortingTitle: "Ordenando",
+    degreesSuffix: "Graus",
+    major: "Maior",
+    language: "Idioma",
+    redraw: "Sortear novamente",
+  },
+};
+
+const DEGREE_TEXT = {
+  en: {
+    functions: {
+      Tonic: "Tonic",
+      Subdominant: "Subdominant",
+      Dominant: "Dominant",
+    },
+    labels: {
+      I: "Tonic",
+      ii: "Supertonic",
+      iii: "Mediant",
+      IV: "Subdominant",
+      V: "Dominant",
+      vi: "Submediant",
+      "viiº": "Leading Tone",
+    },
+    descriptions: {
+      I: "Home base and point of rest.",
+      ii: "Prepares motion away from tonic.",
+      iii: "Soft color that supports tonic.",
+      IV: "Expands tension before resolution.",
+      V: "Tension that resolves to tonic.",
+      vi: "Gentle contrast to tonic.",
+      "viiº": "Pulls upward toward tonic.",
+    },
+  },
+  pt: {
+    functions: {
+      Tonic: "Tônica",
+      Subdominant: "Subdominante",
+      Dominant: "Dominante",
+    },
+    labels: {
+      I: "Tônica",
+      ii: "Supertônica",
+      iii: "Mediante",
+      IV: "Subdominante",
+      V: "Dominante",
+      vi: "Submediante",
+      "viiº": "Sensível",
+    },
+    descriptions: {
+      I: "Base e ponto de repouso.",
+      ii: "Prepara o movimento para fora da tônica.",
+      iii: "Cor suave que apoia a tônica.",
+      IV: "Amplia a tensão antes da resolução.",
+      V: "Tensão que resolve para a tônica.",
+      vi: "Contraste suave à tônica.",
+      "viiº": "Puxa para cima em direção à tônica.",
+    },
+  },
+} as const;
+
 const fallbackQuality = (degree: string) => {
   if (degree === "V") {
     return "7";
@@ -48,13 +139,21 @@ const buildChordName = (key: string, roman: string, fallback: string) => {
   return progression[0] ?? fallback;
 };
 
+const safeHaptic = (callback: () => Promise<void>) => {
+  // expo-haptics is unavailable on web; silently ignore in that case.
+  if (Platform.OS === "web") return;
+  void callback().catch(() => {});
+};
+
 export default function App() {
+  const [language, setLanguage] = useState<Language>("en");
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [degreeCount, setDegreeCount] = useState<number | null>(null);
   const [cards, setCards] = useState<DegreeCard[]>([]);
   const randomizeDegrees = useRandomDegrees();
 
   const flip = useSharedValue(0);
+  const strings = STRINGS[language];
 
   const keyDegrees = useMemo(() => {
     if (!selectedKey) {
@@ -103,15 +202,33 @@ export default function App() {
     transform: [{ rotateY: `${flip.value}deg` }],
   }));
 
-  const renderItem = ({ item, drag, isActive, index }: RenderItemParams<DegreeCard>) => {
+  const renderItem = ({ item, drag, isActive, getIndex }: RenderItemParams<DegreeCard>) => {
+    const itemIndex = getIndex() ?? 0;
+    const dragHandlers =
+      Platform.OS === "web"
+        ? { onPressIn: drag }
+        : { onLongPress: drag };
+    const functionLabel = DEGREE_TEXT[language].functions[item.functionName];
+    const degreeLabel = DEGREE_TEXT[language].labels[item.degree as keyof typeof DEGREE_TEXT.en.labels];
+    const description =
+      DEGREE_TEXT[language].descriptions[item.degree as keyof typeof DEGREE_TEXT.en.descriptions];
     return (
       <ScaleDecorator>
         <Pressable
-          onLongPress={drag}
+          {...dragHandlers}
           disabled={isActive}
           className="active:opacity-90"
         >
-          <DegreeCardView item={item} isActive={isActive} index={index} />
+          <DegreeCardView
+            item={item}
+            isActive={isActive}
+            index={itemIndex}
+            text={{
+              functionName: functionLabel,
+              label: degreeLabel,
+              description,
+            }}
+          />
         </Pressable>
       </ScaleDecorator>
     );
@@ -122,17 +239,34 @@ export default function App() {
       <SafeAreaProvider>
         <SafeAreaView className="flex-1 bg-ink px-5">
           <StatusBar style="light" />
-          <View className="flex-row items-center justify-between mt-2 mb-6">
-            <View>
-              <Text className="text-zinc-400 text-xs uppercase tracking-widest">Harmony Sort</Text>
-              <Text className="text-white text-2xl font-semibold">Degree Drift</Text>
+          <View className="flex-row items-start justify-between mt-2 mb-6">
+            <View className="flex-1 pr-3">
+              <Text className="text-zinc-400 text-xs uppercase tracking-widest">{strings.appLabel}</Text>
+              <Text className="text-white text-2xl font-semibold mt-1">{strings.title}</Text>
+              <Text className="text-zinc-400 text-sm mt-2 leading-5">{strings.tagline}</Text>
             </View>
-            <Pressable
-              onPress={resetKey}
-              className="bg-zinc-900 rounded-full px-3 py-2"
-            >
-              <Text className="text-zinc-300 text-xs">Reset</Text>
-            </Pressable>
+            <View className="items-end space-y-2">
+              <Text className="text-zinc-500 text-[11px] uppercase tracking-widest">{strings.language}</Text>
+              <View className="flex-row bg-zinc-900 rounded-full px-2 py-1">
+                {(["en", "pt"] as Language[]).map((lang) => (
+                  <Pressable
+                    key={lang}
+                    onPress={() => setLanguage(lang)}
+                    className={`px-3 py-2 rounded-full ${language === lang ? "bg-card" : ""}`}
+                  >
+                    <Text className={`text-xs ${language === lang ? "text-white" : "text-zinc-400"}`}>
+                      {lang === "en" ? "EN" : "PT-BR"}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+              <Pressable
+                onPress={resetKey}
+                className="bg-zinc-900 rounded-full px-3 py-2"
+              >
+                <Text className="text-zinc-300 text-xs">{strings.reset}</Text>
+              </Pressable>
+            </View>
           </View>
 
       {!selectedKey && (
@@ -143,8 +277,8 @@ export default function App() {
               className="bg-card rounded-3xl p-8 items-center shadow-glow"
             >
               <Dice5 color="#4f8cff" size={28} />
-              <Text className="text-white text-lg font-semibold mt-4">Pick a Key</Text>
-              <Text className="text-zinc-400 text-sm mt-2">Tap to draw a random major key</Text>
+              <Text className="text-white text-lg font-semibold mt-4">{strings.pickKeyTitle}</Text>
+              <Text className="text-zinc-400 text-sm mt-2 text-center">{strings.pickKeySubtitle}</Text>
             </Pressable>
           </Animated.View>
         </Animated.View>
@@ -153,9 +287,9 @@ export default function App() {
           {selectedKey && degreeCount === null && (
         <Animated.View entering={FadeIn.duration(400)} className="flex-1">
           <View className="bg-card rounded-3xl p-6 shadow-glow">
-            <Text className="text-zinc-400 text-xs uppercase tracking-widest">Selected Key</Text>
-            <Text className="text-white text-3xl font-semibold mt-2">{selectedKey} Major</Text>
-            <Text className="text-zinc-400 text-sm mt-3">Choose how many degrees to sort.</Text>
+            <Text className="text-zinc-400 text-xs uppercase tracking-widest">{strings.selectedKey}</Text>
+            <Text className="text-white text-3xl font-semibold mt-2">{selectedKey} {strings.major}</Text>
+            <Text className="text-zinc-400 text-sm mt-3">{strings.chooseCount}</Text>
             <View className="flex-row flex-wrap mt-5">
               {degreeCounts.map((count) => (
                 <Pressable
@@ -163,7 +297,7 @@ export default function App() {
                   onPress={() => startGame(count)}
                   className="bg-zinc-900 rounded-2xl px-4 py-3 mr-3 mb-3"
                 >
-                  <Text className="text-white text-base font-semibold">{count} cards</Text>
+                  <Text className="text-white text-base font-semibold">{count} {strings.cardsLabel}</Text>
                 </Pressable>
               ))}
             </View>
@@ -175,8 +309,8 @@ export default function App() {
         <View className="flex-1">
           <View className="flex-row items-center justify-between mb-4">
             <View>
-              <Text className="text-zinc-400 text-xs uppercase tracking-widest">Now Sorting</Text>
-              <Text className="text-white text-xl font-semibold">{selectedKey} Major • {degreeCount} Degrees</Text>
+              <Text className="text-zinc-400 text-xs uppercase tracking-widest">{strings.sortingTitle}</Text>
+              <Text className="text-white text-xl font-semibold">{selectedKey} {strings.major} • {degreeCount} {strings.degreesSuffix}</Text>
             </View>
             <Pressable onPress={redraw} className="bg-zinc-900 rounded-full p-3">
               <RefreshCcw color="#a1a1aa" size={18} />
@@ -187,14 +321,14 @@ export default function App() {
             keyExtractor={(item) => item.id}
             renderItem={renderItem}
             onDragBegin={() => {
-              void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              safeHaptic(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light));
             }}
             onDragEnd={({ data }) => {
-              void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              safeHaptic(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium));
               setCards(data);
             }}
             onPlaceholderIndexChange={() => {
-              void Haptics.selectionAsync();
+              safeHaptic(() => Haptics.selectionAsync());
             }}
             activationDistance={10}
             dragHitSlop={{ top: 16, bottom: 16, left: 24, right: 24 }}
