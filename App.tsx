@@ -3,7 +3,7 @@ import "./reanimated-polyfill";
 import "react-native-reanimated";
 import "./global.css";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Platform, Pressable, Text, View } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -29,6 +29,14 @@ import { DegreeCard, useRandomDegrees } from "./hooks/useRandomDegrees";
 import { DegreeCardView } from "./components/DegreeCard";
 
 const degreeCounts = [3, 4, 5, 6];
+
+const moveItem = <T,>(list: T[], from: number, to: number) => {
+  if (from === to || from < 0 || to < 0 || from >= list.length || to >= list.length) return list;
+  const next = [...list];
+  const [item] = next.splice(from, 1);
+  next.splice(to, 0, item);
+  return next;
+};
 
 type Language = "en" | "pt";
 
@@ -151,6 +159,8 @@ export default function App() {
   const [degreeCount, setDegreeCount] = useState<number | null>(null);
   const [cards, setCards] = useState<DegreeCard[]>([]);
   const randomizeDegrees = useRandomDegrees();
+  const activeIndexRef = useRef<number | null>(null);
+  const placeholderIndexRef = useRef<number | null>(null);
 
   const flip = useSharedValue(0);
   const strings = STRINGS[language];
@@ -320,15 +330,26 @@ export default function App() {
             data={cards}
             keyExtractor={(item) => item.id}
             renderItem={renderItem}
-            onDragBegin={() => {
+            onDragBegin={(index) => {
+              activeIndexRef.current = index;
               safeHaptic(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light));
             }}
             onDragEnd={({ data }) => {
               safeHaptic(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium));
               setCards(data);
+              activeIndexRef.current = null;
+              placeholderIndexRef.current = null;
             }}
-            onPlaceholderIndexChange={() => {
+            onPlaceholderIndexChange={(placeholderIndex) => {
+              placeholderIndexRef.current = placeholderIndex;
               safeHaptic(() => Haptics.selectionAsync());
+            }}
+            onRelease={(index) => {
+              activeIndexRef.current = activeIndexRef.current ?? index;
+              const from = activeIndexRef.current;
+              const to = placeholderIndexRef.current;
+              if (from == null || to == null) return;
+              setCards((prev) => moveItem(prev, from, to));
             }}
             activationDistance={10}
             dragHitSlop={{ top: 16, bottom: 16, left: 24, right: 24 }}
