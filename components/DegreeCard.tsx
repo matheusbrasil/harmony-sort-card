@@ -19,6 +19,7 @@ const DegreeCardComponent = ({ item, isActive, index, text }: ExtendedProps) => 
   const functionLabel = text?.functionName ?? item.functionName;
   const degreeLabel = text?.label ?? item.label;
   const description = text?.description ?? item.shortDescription;
+  const degreeDisplay = item.displayDegree ?? item.degree;
   return (
     <Animated.View
       entering={FadeInUp.delay(index * 60).springify().mass(1).damping(18).stiffness(220)}
@@ -29,7 +30,7 @@ const DegreeCardComponent = ({ item, isActive, index, text }: ExtendedProps) => 
         <View>
           <View className="flex-row items-center">
             <View className={`h-2.5 w-2.5 rounded-full ${FUNCTION_COLORS[item.functionName]} mr-2`} />
-            <Text className="text-white text-base font-semibold">{item.degree} • {item.chordName}</Text>
+            <Text className="text-white text-base font-semibold">{degreeDisplay} • {item.chordName}</Text>
           </View>
           <Text className="text-zinc-400 text-xs mt-1">{functionLabel} • {degreeLabel}</Text>
         </View>

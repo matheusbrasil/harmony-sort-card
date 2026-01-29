@@ -22,13 +22,23 @@ import DraggableFlatList, {
 } from "react-native-draggable-flatlist";
 import * as Haptics from "expo-haptics";
 import { Dice5, RefreshCcw } from "lucide-react-native";
-import { Progression, Scale } from "tonal";
+import { Chord, Key } from "tonal";
 
 import { MAJOR_DEGREES, MAJOR_KEYS } from "./constants/music";
 import { DegreeCard, useRandomDegrees } from "./hooks/useRandomDegrees";
 import { DegreeCardView } from "./components/DegreeCard";
 
 const degreeCounts = [3, 4, 5, 6];
+type DegreeSymbol = "I" | "ii" | "iii" | "IV" | "V" | "vi" | "viiº";
+const DEGREE_DISPLAY: Record<DegreeSymbol, string> = {
+  I: "IMaj",
+  ii: "iim",
+  iii: "iiim",
+  IV: "IVMaj",
+  V: "V",
+  vi: "vim",
+  "viiº": "viiø",
+};
 
 const moveItem = <T,>(list: T[], from: number, to: number) => {
   if (from === to || from < 0 || to < 0 || from >= list.length || to >= list.length) return list;
@@ -129,21 +139,8 @@ const DEGREE_TEXT = {
   },
 } as const;
 
-const fallbackQuality = (degree: string) => {
-  if (degree === "V") {
-    return "7";
-  }
-  if (degree === "viiº") {
-    return "dim";
-  }
-  if (degree === "ii" || degree === "iii" || degree === "vi") {
-    return "m";
-  }
-  return "maj";
-};
-
-const buildChordName = (key: string, roman: string, fallback: string) => {
-  const progression = Progression.fromRomanNumerals(key, [roman]);
+const buildChordName = (key: string, degree: DegreeSymbol, fallback: string) => {
+  const progression = Progression.fromRomanNumerals(key, [degree]);
   return progression[0] ?? fallback;
 };
 
@@ -169,14 +166,23 @@ export default function App() {
     if (!selectedKey) {
       return [];
     }
-    const scaleNotes = Scale.get(`${selectedKey} major`).notes;
+    const diatonic = Key.majorKey(selectedKey);
+    const scaleNotes = diatonic.scale;
+    const seventhChords = diatonic.chords;
     return MAJOR_DEGREES.map((degree, index) => {
-      const fallback = `${scaleNotes[index]}${fallbackQuality(degree.degree)}`;
-      const chordName = buildChordName(selectedKey, degree.roman, fallback);
+      const root = scaleNotes[index];
+      const chordName = seventhChords[index] ?? root ?? degree.degree;
+      const chordInfo = Chord.get(chordName);
+      const qualityLabel =
+        chordInfo.quality && chordInfo.type
+          ? `${chordInfo.quality} (${chordInfo.type})`
+          : chordInfo.quality || chordName;
       return {
         ...degree,
         id: `${selectedKey}-${degree.degree}`,
         chordName,
+        displayDegree: DEGREE_DISPLAY[degree.degree as DegreeSymbol] ?? degree.degree,
+        qualityLabel,
       };
     });
   }, [selectedKey]);
@@ -220,8 +226,10 @@ export default function App() {
         : { onLongPress: drag };
     const functionLabel = DEGREE_TEXT[language].functions[item.functionName];
     const degreeLabel = DEGREE_TEXT[language].labels[item.degree as keyof typeof DEGREE_TEXT.en.labels];
-    const description =
+    const baseDescription =
       DEGREE_TEXT[language].descriptions[item.degree as keyof typeof DEGREE_TEXT.en.descriptions];
+    const qualityLabel = item.qualityLabel ?? item.chordName;
+    const description = `${baseDescription} ${language === "en" ? "Quality" : "Qualidade"}: ${qualityLabel}.`;
     return (
       <ScaleDecorator>
         <Pressable
@@ -230,7 +238,7 @@ export default function App() {
           className="active:opacity-90"
         >
           <DegreeCardView
-            item={item}
+            item={{ ...item, displayDegree: item.displayDegree }}
             isActive={isActive}
             index={itemIndex}
             text={{

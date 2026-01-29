@@ -4,6 +4,8 @@ import { DegreeInfo } from "../constants/music";
 export type DegreeCard = DegreeInfo & {
   id: string;
   chordName: string;
+  displayDegree?: string;
+  qualityLabel?: string;
 };
 
 const shuffle = <T,>(items: T[]) => {
