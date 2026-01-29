@@ -1,16 +1,16 @@
 export const MAJOR_KEYS = [
   "C",
-  "Db",
-  "D",
-  "Eb",
-  "E",
-  "F",
-  "Gb",
   "G",
-  "Ab",
+  "D",
   "A",
-  "Bb",
+  "E",
   "B",
+  "Gb",
+  "Db",
+  "Ab",
+  "Eb",
+  "Bb",
+  "F"
 ] as const;
 
 export type DegreeFunction = "Tonic" | "Subdominant" | "Dominant";
